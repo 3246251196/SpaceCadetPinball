@@ -21,6 +21,14 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 		return nullptr;
 
 	fread(&header, 1, sizeof header, fileHandle);
+
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+	header.FileSize = SDL_SwapLE32(header.FileSize);
+	header.NumberOfGroups = SDL_SwapLE16(header.NumberOfGroups);
+	header.SizeOfBody = SDL_SwapLE32(header.SizeOfBody);
+	header.Unknown = SDL_SwapLE16(header.Unknown);
+#endif /* __amigaos4__ */	
+	
 	if (strcmp("PARTOUT(4.0)RESOURCE", header.FileSignature) != 0)
 	{
 		fclose(fileHandle);
@@ -71,6 +79,15 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 			if (entryType == FieldTypes::Bitmap8bit)
 			{
 				fread(&bmpHeader, 1, sizeof(dat8BitBmpHeader), fileHandle);
+				
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+				bmpHeader.Width = SDL_SwapLE16(bmpHeader.Width);
+				bmpHeader.Height = SDL_SwapLE16(bmpHeader.Height);
+				bmpHeader.XPosition = SDL_SwapLE16(bmpHeader.XPosition);
+				bmpHeader.YPosition = SDL_SwapLE16(bmpHeader.YPosition);
+				bmpHeader.Size = SDL_SwapLE32(bmpHeader.Size);
+#endif /* __amigaos4__ */
+				
 				assertm(bmpHeader.Size + sizeof(dat8BitBmpHeader) == fieldSize, "partman: Wrong bitmap field size");
 				assertm(bmpHeader.Resolution <= 2, "partman: bitmap resolution out of bounds");
 
@@ -95,6 +112,14 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 				}
 
 				fread(&zMapHeader, 1, sizeof(dat16BitBmpHeader), fileHandle);
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+				zMapHeader.Width = SDL_SwapLE16(zMapHeader.Width);
+				zMapHeader.Height = SDL_SwapLE16(zMapHeader.Height);
+				zMapHeader.Stride = SDL_SwapLE16(zMapHeader.Stride);
+				zMapHeader.Unknown0 = SDL_SwapLE32(zMapHeader.Unknown0);
+				zMapHeader.Unknown1_0 = SDL_SwapLE16(zMapHeader.Unknown1_0);
+				zMapHeader.Unknown1_1 = SDL_SwapLE16(zMapHeader.Unknown1_1);
+#endif /* __amigaos4__ */				
 				auto length = fieldSize - sizeof(dat16BitBmpHeader);
 
 				zmap_header_type* zMap;
@@ -103,6 +128,12 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 					zMap = new zmap_header_type(zMapHeader.Width, zMapHeader.Height, zMapHeader.Stride);
 					zMap->Resolution = zMapResolution;
 					fread(zMap->ZPtr1, 1, length, fileHandle);
+
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+					for (int i = 0; i < zMapHeader.Stride * zMapHeader.Height; i++) {
+						zMap->ZPtr1[i] = SDL_SwapLE16(zMap->ZPtr1[i]);
+					}
+#endif /* __amigaos4__ */
 				}
 				else
 				{
@@ -122,6 +153,25 @@ DatFile* partman::load_records(LPCSTR lpFileName, bool fullTiltMode)
 					break;
 				}
 				fread(entryBuffer, 1, fieldSize, fileHandle);
+
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+				switch (entryType) {
+					case FieldTypes::ShortValue:
+					case FieldTypes::Unknown2:
+						*(int16_t*)entryBuffer = SDL_SwapLE16(*(int16_t*)entryBuffer);
+						break;
+					case FieldTypes::ShortArray:
+						for (int i = 0; i < fieldSize / 2; i++) {
+							((int16_t*)entryBuffer)[i] = SDL_SwapLE16(((int16_t*)entryBuffer)[i]);
+						}
+						break;
+					case FieldTypes::FloatArray:
+						for (int i = 0; i < fieldSize / 4; i++) {
+							((float*)entryBuffer)[i] = SDL_SwapFloatLE(((float*)entryBuffer)[i]);
+						}
+						break;
+				}
+#endif /* __amigaos4__ */				
 			}
 
 			groupData->AddEntry(entryData);

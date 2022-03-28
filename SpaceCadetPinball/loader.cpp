@@ -165,6 +165,14 @@ int loader::get_sound_id(int groupIndex)
 					fclose(file);
 				}
 
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+				// only swapping what seems to be necessary here - don't want to break anything
+				wavHeader.sample_rate = SDL_SwapLE32(wavHeader.sample_rate);
+				wavHeader.data_size = SDL_SwapLE32(wavHeader.data_size);
+				wavHeader.channels = SDL_SwapLE16(wavHeader.channels);
+				wavHeader.bits_per_sample = SDL_SwapLE16(wavHeader.bits_per_sample);
+#endif /* __amigaos4__ */
+				
 				auto sampleCount = wavHeader.data_size / (wavHeader.channels * (wavHeader.bits_per_sample / 8.0));
 				sound_list[soundIndex].Duration = static_cast<float>(sampleCount / wavHeader.sample_rate);
 				sound_list[soundIndex].WavePtr = Sound::LoadWaveFile(filePath);

@@ -291,6 +291,11 @@ void DatFile::Finalize()
 		// Load 3DPB font into dat to simplify pipeline
 		auto rcData = reinterpret_cast<MsgFont*>(ImFontAtlas::DecompressCompressedBase85Data(
 			EmbeddedData::PB_MSGFT_bin_compressed_data_base85));
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+		rcData->GapWidth = SDL_SwapLE16(rcData->GapWidth);
+		rcData->Unknown1 = SDL_SwapLE16(rcData->Unknown1);
+		rcData->Height = SDL_SwapLE16(rcData->Height);
+#endif /* __amigaos4__ */
 		AddMsgFont(rcData, "pbmsg_ft");
 		IM_FREE(rcData);
 

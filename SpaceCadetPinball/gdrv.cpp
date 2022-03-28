@@ -1,3 +1,7 @@
+#ifdef __amigaos4__
+#error "Change ColorRgba structure for BigEndian"
+#endif /* __amigaos4__ */
+
 #include "pch.h"
 #include "gdrv.h"
 
