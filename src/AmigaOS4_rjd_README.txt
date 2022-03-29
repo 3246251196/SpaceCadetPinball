@@ -28,5 +28,6 @@ CHANGES (since version 1.0):
 - Updated core codebase to latest version (Feb 10 2022) from October 2021
 - Fixed crash if there is no .DAT file in any search paths
 - Game now runs with linear filtering at an acceptable rate
+- Added an appropriate icon (thank you Steven Solie/Kevin Lester (CreateIcon)
 - GITHUB: Forked to: https://github.com/3246251196/SpaceCadetPinball
           from     : https://github.com/k4zmu2a/SpaceCadetPinball
