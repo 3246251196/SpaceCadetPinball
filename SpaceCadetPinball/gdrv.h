@@ -40,7 +40,11 @@ struct ColorRgba
 	void SetBlue(uint8_t val) { Color = (Color & (~(0xffu << blueOffset))) | (val << blueOffset); }
 
 private:
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+	static const unsigned alphaOffset = 0 * 8, redOffset = 1 * 8, greenOffset = 2 * 8, blueOffset = 3 * 8;
+#else
 	static const unsigned alphaOffset = 3 * 8, redOffset = 2 * 8, greenOffset = 1 * 8, blueOffset = 0 * 8;
+#endif /* __amigaos4__ */
 };
 
 static_assert(sizeof(ColorRgba) == 4, "Wrong size of RGBA color");
