@@ -25,6 +25,12 @@ int winmain::last_mouse_x;
 int winmain::last_mouse_y;
 int winmain::mouse_down;
 bool winmain::no_time_loss = false;
+#ifdef __amigaos4__
+char* winmain::basePath = nullptr;
+char* winmain::prefPath = nullptr;
+SDL_Renderer* winmain::renderer = nullptr;
+SDL_Window* winmain::window = nullptr;
+#endif
 
 bool winmain::restart = false;
 
@@ -56,13 +62,20 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		SDL_INIT_EVENTS | SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER) < 0)
 	{
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not initialize SDL2", SDL_GetError(), nullptr);
+#ifdef __amigaos4__
+                RJD_ENDER(1);
+#else                
 		return 1;
+#endif
 	}
 
 	pinball::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
 
 	// SDL window
-	SDL_Window* window = SDL_CreateWindow
+#ifndef __amigaos4__
+       SDL_Window*
+#endif
+       window = SDL_CreateWindow
 	(
 		pinball::get_rc_string(38, 0),
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -73,11 +86,17 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	if (!window)
 	{
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create window", SDL_GetError(), nullptr);
+#ifdef __amigaos4__
+                RJD_ENDER(1);
+#else                
 		return 1;
+#endif
 	}
 
 	// If HW fails, fallback to SW SDL renderer.
-	SDL_Renderer* renderer = nullptr;
+#ifndef __amigaos4__        
+        SDL_Renderer* renderer = nullptr;
+#endif
 	auto swOffset = strstr(lpCmdLine, "-sw") != nullptr ? 1 : 0;
 	for (int i = swOffset; i < 2 && !renderer; i++)
 	{
@@ -91,8 +110,13 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	if (!renderer)
 	{
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not create renderer", SDL_GetError(), window);
+#ifdef __amigaos4__
+                RJD_ENDER(1);
+#else                
 		return 1;
+#endif
 	}
+        
 	SDL_RendererInfo rendererInfo{};
 	if (!SDL_GetRendererInfo(renderer, &rendererInfo))
 		printf("Using SDL renderer: %s\n", rendererInfo.name);
@@ -110,15 +134,21 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
-	auto prefPath = SDL_GetPrefPath(nullptr, "SpaceCadetPinball");
+#ifndef __amigaos4__
+        auto 
+#endif
+        prefPath = SDL_GetPrefPath(nullptr, "SpaceCadetPinball");
 	auto iniPath = std::string(prefPath) + "imgui_pb.ini";
 	io.IniFilename = iniPath.c_str();
 
 	// First step: just load the options
 	options::InitPrimary();
 
-	// Data search order: WD, executable path, user pref path, platform specific paths.
-	auto basePath = SDL_GetBasePath();
+        // Data search order: WD, executable path, user pref path, platform specific paths.
+#ifndef __amigaos4__        
+	auto 
+#endif
+        basePath = SDL_GetBasePath();
 	std::vector<const char*> searchPaths
 	{
 		{
@@ -152,7 +182,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 		}
 		SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Could not load game data",
 		                         message.c_str(), window);
+#ifdef __amigaos4__
+                RJD_ENDER(1);
+#else                
 		return 1;
+#endif
 	}
 
 	fullscrn::init();
@@ -179,6 +213,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	double UpdateToFrameCounter = 0;
 	DurationMs sleepRemainder(0), frameDuration(TargetFrameTime);
 	auto prevTime = frameStart;
+
 	while (true)
 	{
 		if (DispFrameRate)
@@ -297,8 +332,11 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 			UpdateToFrameCounter++;
 		}
 	}
-
-	SDL_free(basePath);
+        
+#ifdef __amigaos4__
+	RJD_ENDER(0);
+#else
+        SDL_free(basePath);
 	SDL_free(prefPath);
 	delete gfr_display;
 	gfr_display = nullptr;
@@ -312,7 +350,8 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	SDL_DestroyWindow(window);
 	ImGui::DestroyContext();
 	SDL_Quit();
-
+#endif
+        
 	return return_value;
 }
 
@@ -1012,3 +1051,23 @@ void winmain::HybridSleep(DurationMs sleepTarget)
 	// spin lock
 	for (auto start = Clock::now(); DurationMs(Clock::now() - start) < sleepTarget;);
 }
+
+#ifdef __amigaos4__
+void winmain::cleanUp()
+{
+	SDL_free(basePath);
+	SDL_free(prefPath);
+	delete gfr_display;
+	gfr_display = nullptr;
+	options::uninit();
+	midi::music_shutdown();
+	pb::uninit();
+	Sound::Close();
+	ImGuiSDL::Deinitialize();
+	ImGui_ImplSDL2_Shutdown();
+	SDL_DestroyRenderer(renderer);
+	SDL_DestroyWindow(window);
+	ImGui::DestroyContext();
+	SDL_Quit();
+}
+#endif

@@ -103,5 +103,16 @@ private:
 
 	static void RenderUi();
 	static void RenderFrameTimeDialog();
-	static void HybridSleep(DurationMs seconds);
+        static void HybridSleep(DurationMs seconds);
+#ifdef __amigaos4__
+        static char* basePath;
+        static char* prefPath;
+        static SDL_Renderer *renderer;
+        static SDL_Window *window;
+	static void cleanUp();
+#endif
 };
+
+#ifdef __amigaos4__
+#define RJD_ENDER(r) { return_value=r; cleanUp(); return return_value; }
+#endif
