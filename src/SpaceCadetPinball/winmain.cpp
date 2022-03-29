@@ -300,13 +300,15 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				frameCounter++;
 				UpdateToFrameCounter -= UpdateToFrameRatio;
 			}
-
+                        
+#ifndef __amigaos4__
 			auto sdlError = SDL_GetError();
 			if (sdlError[0])
 			{
 				SDL_ClearError();
 				printf("SDL Error: %s\n", sdlError);
 			}
+#endif
 
 			auto updateEnd = Clock::now();
 			auto targetTimeDelta = TargetFrameTime - DurationMs(updateEnd - frameStart) - sleepRemainder;

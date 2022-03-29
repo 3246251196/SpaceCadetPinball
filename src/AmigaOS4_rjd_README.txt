@@ -23,7 +23,7 @@ TODO:
 - If not CMAKE then implement HEADER depends in makefile.os4
 - Fix when pressing 'ESC': causes iconfication and re-opening seems to not re-render
 
-CHANGES (since version 1.0):
+CHANGES v1.1 (since version 1.0):
 ---
 - Updated core codebase to latest version (Feb 10 2022) from October 2021
 - Fixed crash if there is no .DAT file in any search paths
@@ -31,3 +31,8 @@ CHANGES (since version 1.0):
 - Added an appropriate icon (thank you Steven Solie/Kevin Lester (CreateIcon)
 - GITHUB: Forked to: https://github.com/3246251196/SpaceCadetPinball
           from     : https://github.com/k4zmu2a/SpaceCadetPinball
+
+CHANGES v1.2 (since version 1.1)
+---
+- Removed the output of SDL Error messages to console window
+- Compile with NDEBUG

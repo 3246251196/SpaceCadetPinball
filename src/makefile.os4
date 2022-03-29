@@ -5,8 +5,8 @@ OBJS:=$(patsubst %.cpp, %.o, $(SRCS))
 OBJS+=rjd_amigaos4.o
 
 CXX:=g++
-CFLAGS:=-O3 -std=c++11 -include rjd_amigaos4.h -Wall -Wno-unused-parameter -Wno-switch \
-    -Wno-unused-label -Wno-stringop-truncation -Wno-sign-compare -Werror -Wextra -pedantic
+CFLAGS:=-O3 -DNDEBUG -std=c++11 -include rjd_amigaos4.h -Wall -Wno-unused-parameter -Wno-switch \
+    -Wno-unused-variable -Wno-stringop-truncation -Wno-sign-compare -Werror -Wextra -pedantic
 DEFS:=
 INCS:=-I/SDK/local/newlib/include/SDL2
 LD:=g++
