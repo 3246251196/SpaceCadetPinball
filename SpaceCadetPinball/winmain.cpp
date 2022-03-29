@@ -1055,18 +1055,17 @@ void winmain::HybridSleep(DurationMs sleepTarget)
 #ifdef __amigaos4__
 void winmain::cleanUp()
 {
-	SDL_free(basePath);
-	SDL_free(prefPath);
-	delete gfr_display;
-	gfr_display = nullptr;
+	if(basePath){ SDL_free(basePath); basePath=nullptr; }
+	if(prefPath){ SDL_free(prefPath); prefPath=nullptr; }
+	if(gfr_display){ delete gfr_display; gfr_display=nullptr; }
 	options::uninit();
 	midi::music_shutdown();
 	pb::uninit();
 	Sound::Close();
 	ImGuiSDL::Deinitialize();
 	ImGui_ImplSDL2_Shutdown();
-	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
+	if(renderer){ SDL_DestroyRenderer(renderer); renderer=nullptr; if(Renderer)Renderer=nullptr; }
+	if(window){ SDL_DestroyWindow(window); window=nullptr; if(MainWindow)MainWindow=nullptr; }
 	ImGui::DestroyContext();
 	SDL_Quit();
 }
