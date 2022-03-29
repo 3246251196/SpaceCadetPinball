@@ -69,7 +69,8 @@ private:
 		T Buffer{};
 		fread(&Buffer, 1, sizeof(T), file);
 
-#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */		if (sizeof(T) == 4) {
+#ifdef __amigaos4__ /* RJD: Really, we should detect all BigEndian machines */
+		if (sizeof(T) == 4) {
 			// uint32
 			Buffer = SDL_SwapLE32(Buffer);
 		}
