@@ -5,6 +5,8 @@ struct GameInput;
 class TPinballTable;
 class DatFile;
 class TBall;
+class TTextBox;
+enum class Msg : int;
 
 enum class GameModes
 {
@@ -45,9 +47,11 @@ public:
 	static bool cheat_mode;
 	static DatFile* record_table;
 	static TPinballTable* MainTable;
-	static high_score_struct highscore_table[5];
 	static bool FullTiltMode, FullTiltDemoMode;
-	static std::string DatFileName;
+	static std::string DatFileName, BasePath;
+	static ImU32 TextBoxColor;
+	static int quickFlag;
+	static TTextBox *InfoTextBox, *MissTextBox;
 
 	static int init();
 	static int uninit();
@@ -72,6 +76,9 @@ public:
 	static bool chk_highscore();
 	static float collide(float timeNow, float timeDelta, TBall* ball);
 	static void PushCheat(const std::string& cheat);
+	static LPCSTR get_rc_string(Msg uID);
+	static int get_rc_int(Msg uID, int* dst);
+	static std::string make_path_name(const std::string& fileName);
 private:
 	static bool demo_mode;
 

@@ -3,9 +3,11 @@
 
 #include "fullscrn.h"
 #include "midi.h"
+#include "pb.h"
 #include "render.h"
 #include "Sound.h"
 #include "winmain.h"
+#include "translations.h"
 
 constexpr int options::MaxUps, options::MaxFps, options::MinUps, options::MinFps, options::DefUps, options::DefFps;
 constexpr int options::MaxSoundChannels, options::MinSoundChannels, options::DefSoundChannels;
@@ -18,12 +20,12 @@ bool options::ShowDialog = false;
 GameInput* options::ControlWaitingForInput = nullptr;
 const ControlRef options::Controls[6]
 {
-	{"Left Flipper", RebindControls.LeftFlipper},
-	{"Right Flipper", RebindControls.RightFlipper},
-	{"Left Table Bump", RebindControls.LeftTableBump},
-	{"Right Table Bump", RebindControls.RightTableBump},
-	{"Bottom Table Bump", RebindControls.BottomTableBump},
-	{"Plunger", RebindControls.Plunger},
+	{Msg::KEYMAPPER_FlipperL, RebindControls.LeftFlipper},
+	{Msg::KEYMAPPER_FlipperR, RebindControls.RightFlipper},
+	{Msg::KEYMAPPER_BumpLeft, RebindControls.LeftTableBump},
+	{Msg::KEYMAPPER_BumpRight, RebindControls.RightTableBump},
+	{Msg::KEYMAPPER_BumpBottom, RebindControls.BottomTableBump},
+	{Msg::KEYMAPPER_Plunger, RebindControls.Plunger},
 };
 
 
@@ -102,8 +104,19 @@ void options::InitPrimary()
 	Options.HybridSleep = get_int("HybridSleep", false);
 	Options.Prefer3DPBGameData = get_int("Prefer 3DPB Game Data", false);
 	Options.IntegerScaling = get_int("Integer Scaling", false);
+	Options.SoundStereo = get_int("Stereo Sound Effects", false);
 	Options.SoundVolume = Clamp(get_int("Sound Volume", DefVolume), MinVolume, MaxVolume);
 	Options.MusicVolume = Clamp(get_int("Music Volume", DefVolume), MinVolume, MaxVolume);
+	Options.DebugOverlay = get_int("Debug Overlay", false);
+	Options.DebugOverlayGrid = get_int("Debug Overlay Grid", true);
+	Options.DebugOverlayAllEdges = get_int("Debug Overlay All Edges", true);
+	Options.DebugOverlayBallPosition = get_int("Debug Overlay Ball Position", true);
+	Options.DebugOverlayBallEdges = get_int("Debug Overlay Ball Edges", true);
+	Options.DebugOverlayCollisionMask = get_int("Debug Overlay Collision Mask", true);
+	Options.DebugOverlaySprites = get_int("Debug Overlay Sprites", true);
+	Options.DebugOverlaySounds = get_int("Debug Overlay Sounds", true);
+	translations::SetCurrentLanguage(get_string("Language", translations::GetCurrentLanguage()->ShortName).c_str());
+	Options.FontFileName = get_string("FontFileName", "");
 }
 
 void options::InitSecondary()
@@ -141,8 +154,19 @@ void options::uninit()
 	set_int("HybridSleep", Options.HybridSleep);
 	set_int("Prefer 3DPB Game Data", Options.Prefer3DPBGameData);
 	set_int("Integer Scaling", Options.IntegerScaling);
+	set_int("Stereo Sound Effects", Options.SoundStereo);
 	set_int("Sound Volume", Options.SoundVolume);
 	set_int("Music Volume", Options.MusicVolume);
+	set_int("Debug Overlay", Options.DebugOverlay);
+	set_int("Debug Overlay Grid", Options.DebugOverlayGrid);
+	set_int("Debug Overlay All Edges", Options.DebugOverlayAllEdges);
+	set_int("Debug Overlay Ball Position", Options.DebugOverlayBallPosition);
+	set_int("Debug Overlay Ball Edges", Options.DebugOverlayBallEdges);
+	set_int("Debug Overlay Collision Mask", Options.DebugOverlayCollisionMask);
+	set_int("Debug Overlay Sprites", Options.DebugOverlaySprites);
+	set_int("Debug Overlay Sounds", Options.DebugOverlaySounds);
+	set_string("Language", translations::GetCurrentLanguage()->ShortName);
+	set_string("FontFileName", Options.FontFileName.c_str());
 }
 
 
@@ -209,12 +233,15 @@ void options::toggle(Menu1 uIDCheckItem)
 		Options.Sounds ^= true;
 		Sound::Enable(Options.Sounds);
 		return;
+	case Menu1::SoundStereo:
+		Options.SoundStereo ^= true;
+		return;
 	case Menu1::Music:
 		Options.Music ^= true;
 		if (!Options.Music)
 			midi::music_stop();
 		else
-			midi::play_pb_theme();
+			midi::music_play();
 		return;
 	case Menu1::Show_Menu:
 		Options.ShowMenu = Options.ShowMenu == 0;
@@ -318,18 +345,16 @@ void options::RenderControlDialog()
 		return;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowMinSize, ImVec2{550, 450});
-	if (ImGui::Begin("3D Pinball: Player Controls", &ShowDialog))
+	if (ImGui::Begin(pb::get_rc_string(Msg::KEYMAPPER_Caption), &ShowDialog))
 	{
-		ImGui::TextUnformatted("Instructions");
+		ImGui::TextUnformatted(pb::get_rc_string(Msg::KEYMAPPER_Groupbox2));
 		ImGui::Separator();
 
-		ImGui::TextWrapped(
-			"To change game controls, click the control button, press the new key, and then choose OK.");
-		ImGui::TextWrapped(
-			"To restore 3D Pinball to its original settings, choose Default, and then choose OK.");
+		ImGui::TextWrapped("%s", pb::get_rc_string(Msg::KEYMAPPER_Help1));
+		ImGui::TextWrapped("%s", pb::get_rc_string(Msg::KEYMAPPER_Help2));
 		ImGui::Spacing();
 
-		ImGui::TextUnformatted("Control Options");
+		ImGui::TextUnformatted(pb::get_rc_string(Msg::KEYMAPPER_Groupbox1));
 
 		ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ImVec2{5, 10});
 		if (ImGui::BeginTable("Controls", 4, ImGuiTableFlags_NoSavedSettings | ImGuiTableFlags_Borders))
@@ -345,7 +370,7 @@ void options::RenderControlDialog()
 			{
 				ImGui::TableNextColumn();
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4{0.5, 0, 0, 1});
-				if (ImGui::Button(row.Name))
+				if (ImGui::Button(pb::get_rc_string(row.NameStringId)))
 				{
 					for (auto i = 0u; i <= 2; i++)
 						row.Option[i] = {};
@@ -398,20 +423,20 @@ void options::RenderControlDialog()
 		ImGui::PopStyleVar();
 		ImGui::Spacing();
 
-		if (ImGui::Button("OK"))
+		if (ImGui::Button(pb::get_rc_string(Msg::KEYMAPPER_Ok)))
 		{
 			Options.Key = RebindControls;
 			ShowDialog = false;
 		}
 
 		ImGui::SameLine();
-		if (ImGui::Button("Cancel"))
+		if (ImGui::Button(pb::get_rc_string(Msg::KEYMAPPER_Cancel)))
 		{
 			ShowDialog = false;
 		}
 
 		ImGui::SameLine();
-		if (ImGui::Button("Default"))
+		if (ImGui::Button(pb::get_rc_string(Msg::KEYMAPPER_Default)))
 		{
 			RebindControls = Options.KeyDft;
 			ControlWaitingForInput = nullptr;

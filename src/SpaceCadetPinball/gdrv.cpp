@@ -6,10 +6,20 @@
 #include "pb.h"
 #include "score.h"
 #include "winmain.h"
+#include "TTextBox.h"
+#include "fullscrn.h"
 
 ColorRgba gdrv::current_palette[256]{};
 
-gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed)
+gdrv_bitmap8::gdrv_bitmap8(int width, int height) : gdrv_bitmap8(width, height, true, true)
+{
+}
+
+gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed) : gdrv_bitmap8(width, height, indexed, true)
+{
+}
+
+gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed, bool bmpBuff)
 {
 	assertm(width >= 0 && height >= 0, "Negative bitmap8 dimensions");
 
@@ -20,13 +30,15 @@ gdrv_bitmap8::gdrv_bitmap8(int width, int height, bool indexed)
 	BitmapType = BitmapTypes::DibBitmap;
 	Texture = nullptr;
 	IndexedBmpPtr = nullptr;
+	BmpBufPtr1 = nullptr;
 	XPosition = 0;
 	YPosition = 0;
 	Resolution = 0;
 
 	if (indexed)
 		IndexedBmpPtr = new char[Height * IndexedStride];
-	BmpBufPtr1 = new ColorRgba[Height * Stride];
+	if (bmpBuff)
+		BmpBufPtr1 = new ColorRgba[Height * Stride];
 }
 
 gdrv_bitmap8::gdrv_bitmap8(const dat8BitBmpHeader& header)
@@ -259,8 +271,15 @@ void gdrv::ScrollBitmapHorizontal(gdrv_bitmap8* bmp, int xStart)
 }
 
 
-void gdrv::grtext_draw_ttext_in_box(LPCSTR text, int xOff, int yOff, int width, int height, int a6)
+void gdrv::grtext_draw_ttext_in_box()
 {
+	for (const auto textBox : { pb::InfoTextBox, pb::MissTextBox })
+	{
+		if (textBox)
+		{
+			textBox->DrawImGui();
+		}
+	}
 }
 
 void gdrv::ApplyPalette(gdrv_bitmap8& bmp)

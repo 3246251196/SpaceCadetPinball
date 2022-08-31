@@ -4,8 +4,8 @@
 
 #include "control.h"
 #include "loader.h"
+#include "midi.h"
 #include "pb.h"
-#include "pinball.h"
 #include "render.h"
 #include "TBall.h"
 #include "TBlocker.h"
@@ -37,6 +37,7 @@
 #include "TPlunger.h"
 #include "TFlipper.h"
 #include "TDrain.h"
+#include "translations.h"
 
 int TPinballTable::score_multipliers[5] = {1, 2, 3, 5, 10};
 
@@ -48,20 +49,19 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	CurScoreStruct = nullptr;
 	ScoreBallcount = nullptr;
 	ScorePlayerNumber1 = nullptr;
-	BallInSink = 0;
+	BallInDrainFlag = 0;
 	ActiveFlag = 1;
 	TiltLockFlag = 0;
 	EndGameTimeoutTimer = 0;
 	LightShowTimer = 0;
 	ReplayTimer = 0;
 	TiltTimeoutTimer = 0;
-	MultiballFlag = 0;
+	MultiballFlag = false;
 	PlayerCount = 0;
 
-	auto ballObj = new TBall(this);
-	BallList.push_back(ballObj);
-	if (ballObj)
-		ballObj->ActiveFlag = 0;
+	auto ball = AddBall(0.0f, 0.0f);
+	ball->Disable();
+
 	new TTableLayer(this);
 	LightGroup = new TLightGroup(this, 0);
 
@@ -185,8 +185,8 @@ TPinballTable::TPinballTable(): TPinballComponent(nullptr, -1, false)
 	}
 
 	render::build_occlude_list();
-	pinball::InfoTextBox = dynamic_cast<TTextBox*>(find_component("info_text_box"));
-	pinball::MissTextBox = dynamic_cast<TTextBox*>(find_component("mission_text_box"));
+	pb::InfoTextBox = dynamic_cast<TTextBox*>(find_component("info_text_box"));
+	pb::MissTextBox = dynamic_cast<TTextBox*>(find_component("mission_text_box"));
 	control::make_links(this);
 }
 
@@ -214,6 +214,7 @@ TPinballTable::~TPinballTable()
 		delete ComponentList[0];
 	}
 	control::ClearLinks();
+	pb::InfoTextBox = pb::MissTextBox = nullptr;
 }
 
 TPinballComponent* TPinballTable::find_component(LPCSTR componentName)
@@ -286,12 +287,12 @@ void TPinballTable::ChangeBallCount(int count)
 
 void TPinballTable::tilt(float time)
 {
-	if (!TiltLockFlag && !BallInSink)
+	if (!TiltLockFlag && !BallInDrainFlag)
 	{
-		pinball::InfoTextBox->Clear();
-		pinball::MissTextBox->Clear();
-		pinball::InfoTextBox->Display(pinball::get_rc_string(35, 0), -1.0);
-		loader::play_sound(SoundIndex3);
+		pb::InfoTextBox->Clear();
+		pb::MissTextBox->Clear();
+		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING136), -1.0);
+		loader::play_sound(SoundIndex3, nullptr, "TPinballTable1");
 		TiltTimeoutTimer = timer::set(30.0, this, tilt_timeout);
 
 		for (auto component : ComponentList)
@@ -315,7 +316,7 @@ void TPinballTable::port_draw()
 
 int TPinballTable::Message(int code, float value)
 {
-	LPSTR rc_text;
+	const char* rc_text;
 	switch (code)
 	{
 	case 1000:
@@ -369,10 +370,10 @@ int TPinballTable::Message(int code, float value)
 		LightGroup->Message(20, 0.0);
 		Plunger->Message(1016, 0.0);
 		if (Demo && Demo->ActiveFlag)
-			rc_text = pinball::get_rc_string(30, 0);
+			rc_text = pb::get_rc_string(Msg::STRING131);
 		else
-			rc_text = pinball::get_rc_string(26, 0);
-		pinball::InfoTextBox->Display(rc_text, -1.0);
+			rc_text = pb::get_rc_string(Msg::STRING127);
+		pb::InfoTextBox->Display(rc_text, -1.0);
 		if (Demo)
 			Demo->Message(1014, 0.0);
 		break;
@@ -442,12 +443,19 @@ int TPinballTable::Message(int code, float value)
 			ScoreSpecial3Flag = 0;
 			ScoreSpecial2Flag = 0;
 			UnknownP71 = 0;
-			pinball::InfoTextBox->Clear();
-			pinball::MissTextBox->Clear();
+			pb::InfoTextBox->Clear();
+			pb::MissTextBox->Clear();
 			LightGroup->Message(28, 0.2f);
-			auto time = loader::play_sound(SoundIndex1);
+			auto time = loader::play_sound(SoundIndex1, nullptr, "TPinballTable2");
+			if (time < 0)
+				time = 5.0f;
 			LightShowTimer = timer::set(time, this, LightShow_timeout);
 		}
+
+		// Multi-ball is FT exclusive feature, at least for now.
+		if (pb::FullTiltMode)
+			MultiballFlag = true;
+		midi::play_track(MidiTracks::Track1, true);
 		break;
 	case 1018:
 		if (ReplayTimer)
@@ -459,12 +467,12 @@ int TPinballTable::Message(int code, float value)
 		{
 			if (PlayerCount <= 1)
 			{
-				char* textboxText;
+				const char* textboxText;
 				if (Demo->ActiveFlag)
-					textboxText = pinball::get_rc_string(30, 0);
+					textboxText = pb::get_rc_string(Msg::STRING131);
 				else
-					textboxText = pinball::get_rc_string(26, 0);
-				pinball::InfoTextBox->Display(textboxText, -1.0);
+					textboxText = pb::get_rc_string(Msg::STRING127);
+				pb::InfoTextBox->Display(textboxText, -1.0);
 				break;
 			}
 
@@ -500,39 +508,39 @@ int TPinballTable::Message(int code, float value)
 				component->Message(1020, static_cast<float>(nextPlayer));
 			}
 
-			char* textboxText = nullptr;
+			const char* textboxText = nullptr;
 			switch (nextPlayer)
 			{
 			case 0:
 				if (Demo->ActiveFlag)
-					textboxText = pinball::get_rc_string(30, 0);
+					textboxText = pb::get_rc_string(Msg::STRING131);
 				else
-					textboxText = pinball::get_rc_string(26, 0);
+					textboxText = pb::get_rc_string(Msg::STRING127);
 				break;
 			case 1:
 				if (Demo->ActiveFlag)
-					textboxText = pinball::get_rc_string(31, 0);
+					textboxText = pb::get_rc_string(Msg::STRING132);
 				else
-					textboxText = pinball::get_rc_string(27, 0);
+					textboxText = pb::get_rc_string(Msg::STRING128);
 				break;
 			case 2:
 				if (Demo->ActiveFlag)
-					textboxText = pinball::get_rc_string(32, 0);
+					textboxText = pb::get_rc_string(Msg::STRING133);
 				else
-					textboxText = pinball::get_rc_string(28, 0);
+					textboxText = pb::get_rc_string(Msg::STRING129);
 				break;
 			case 3:
 				if (Demo->ActiveFlag)
-					textboxText = pinball::get_rc_string(33, 0);
+					textboxText = pb::get_rc_string(Msg::STRING134);
 				else
-					textboxText = pinball::get_rc_string(29, 0);
+					textboxText = pb::get_rc_string(Msg::STRING130);
 				break;
 			default:
 				break;
 			}
 
 			if (textboxText != nullptr)
-				pinball::InfoTextBox->Display(textboxText, -1);
+				pb::InfoTextBox->Display(textboxText, -1);
 			ScoreSpecial3Flag = 0;
 			ScoreSpecial2Flag = 0;
 			UnknownP71 = 0;
@@ -540,9 +548,9 @@ int TPinballTable::Message(int code, float value)
 		}
 		break;
 	case 1022:
-		loader::play_sound(SoundIndex2);
-		pinball::MissTextBox->Clear();
-		pinball::InfoTextBox->Display(pinball::get_rc_string(34, 0), -1.0);
+		loader::play_sound(SoundIndex2, nullptr, "TPinballTable3");
+		pb::MissTextBox->Clear();
+		pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING135), -1.0);
 		EndGameTimeoutTimer = timer::set(3.0, this, EndGame_timeout);
 		break;
 	case 1024:
@@ -568,9 +576,9 @@ int TPinballTable::Message(int code, float value)
 		ScoreSpecial3Flag = 0;
 		UnknownP71 = 0;
 		ExtraBalls = 0;
-		UnknownP75 = 0;
+		MultiballCount = 0;
 		BallLockedCounter = 0;
-		MultiballFlag = 0;
+		MultiballFlag = false;
 		UnknownP78 = 0;
 		ReplayActiveFlag = 0;
 		ReplayTimer = 0;
@@ -582,6 +590,63 @@ int TPinballTable::Message(int code, float value)
 
 	control::table_control_handler(code);
 	return 0;
+}
+
+TBall* TPinballTable::AddBall(float x, float y)
+{
+	TBall* ball = nullptr;
+
+	for (auto curBall : BallList)
+	{
+		if (!curBall->ActiveFlag)
+		{
+			ball = curBall;
+			break;
+		}
+	}
+
+	if (ball != nullptr)
+	{
+		ball->ActiveFlag = 1;
+		ball->Position.Z = ball->Offset;
+		ball->Direction = {};
+		ball->Speed = 0;
+		ball->TimeDelta = 0;
+		ball->TimeNow = 0;
+		ball->EdgeCollisionCount = 0;
+		ball->CollisionFlag = 0;
+		ball->CollisionMask = 1;
+		ball->CollisionComp = nullptr;
+	}
+	else
+	{
+		if (BallList.size() >= 20)
+			return nullptr;
+		ball = new TBall(this);
+		BallList.push_back(ball);
+	}
+
+	ball->Position.X = x;
+	ball->Position.Y = y;
+
+	return ball;
+}
+
+int TPinballTable::BallCountInRect(const RectF& rect)
+{
+	int count = 0;
+	for (const auto ball : BallList)
+	{
+		if (ball->ActiveFlag &&
+			ball->Position.X >= rect.XMin &&
+			ball->Position.Y >= rect.YMin &&
+			ball->Position.X <= rect.XMax &&
+			ball->Position.Y <= rect.YMax)
+		{
+			count++;
+		}
+	}
+	return count;
 }
 
 void TPinballTable::EndGame_timeout(int timerId, void* caller)
@@ -596,8 +661,8 @@ void TPinballTable::EndGame_timeout(int timerId, void* caller)
 	}
 	if (table->Demo)
 		table->Demo->Message(1022, 0.0);
-	control::handler(67, pinball::MissTextBox);
-	pinball::InfoTextBox->Display(pinball::get_rc_string(24, 0), -1.0);
+	control::handler(67, pb::MissTextBox);
+	pb::InfoTextBox->Display(pb::get_rc_string(Msg::STRING125), -1.0);
 }
 
 void TPinballTable::LightShow_timeout(int timerId, void* caller)
@@ -617,7 +682,7 @@ void TPinballTable::replay_timer_callback(int timerId, void* caller)
 void TPinballTable::tilt_timeout(int timerId, void* caller)
 {
 	auto table = static_cast<TPinballTable*>(caller);
-	vector_type vec{};
+	vector2 vec{};
 
 	table->TiltTimeoutTimer = 0;
 	if (table->TiltLockFlag)

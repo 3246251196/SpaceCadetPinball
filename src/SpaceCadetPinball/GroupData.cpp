@@ -6,7 +6,6 @@
 #include "fullscrn.h"
 #include "gdrv.h"
 #include "pb.h"
-#include "pinball.h"
 #include "zdrv.h"
 
 
@@ -47,7 +46,7 @@ void GroupData::AddEntry(EntryData* entry)
 			if (srcBmp->BitmapType == BitmapTypes::Spliced)
 			{
 				// Get rid of spliced bitmap early on, to simplify render pipeline
-				auto bmp = new gdrv_bitmap8(srcBmp->Width, srcBmp->Height, srcBmp->Width);
+				auto bmp = new gdrv_bitmap8(srcBmp->Width, srcBmp->Height, true);
 				auto zMap = new zmap_header_type(srcBmp->Width, srcBmp->Height, srcBmp->Width);
 				SplitSplicedBitmap(*srcBmp, *bmp, *zMap);
 
@@ -301,7 +300,7 @@ void DatFile::Finalize()
 
 		// PINBALL2.MID is an alternative font provided in 3DPB data
 		// Scaled down because it is too large for top text box
-		/*auto file = pinball::make_path_name("PINBALL2.MID");
+		/*auto file = pb::make_path_name("PINBALL2.MID");
 		auto fileHandle = fopenu(file.c_str(), "rb");
 		fseek(fileHandle, 0, SEEK_END);
 		auto fileSize = static_cast<uint32_t>(ftell(fileHandle));

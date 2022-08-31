@@ -38,6 +38,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/control.h
         SpaceCadetPinball/EmbeddedData.cpp
         SpaceCadetPinball/EmbeddedData.h
+        SpaceCadetPinball/font_selection.cpp
+        SpaceCadetPinball/font_selection.h
         SpaceCadetPinball/fullscrn.cpp
         SpaceCadetPinball/fullscrn.h
         SpaceCadetPinball/gdrv.cpp
@@ -61,8 +63,6 @@ set(SOURCE_FILES
         SpaceCadetPinball/pb.cpp
         SpaceCadetPinball/pb.h
         SpaceCadetPinball/pch.h
-        SpaceCadetPinball/pinball.cpp
-        SpaceCadetPinball/pinball.h
         SpaceCadetPinball/proj.cpp
         SpaceCadetPinball/proj.h
         SpaceCadetPinball/render.cpp
@@ -131,6 +131,8 @@ set(SOURCE_FILES
         SpaceCadetPinball/TPopupTarget.h
         SpaceCadetPinball/TRamp.cpp
         SpaceCadetPinball/TRamp.h
+        SpaceCadetPinball/translations.cpp
+        SpaceCadetPinball/translations.h
         SpaceCadetPinball/TRollover.cpp
         SpaceCadetPinball/TRollover.h
         SpaceCadetPinball/TSink.cpp
@@ -170,12 +172,14 @@ set(SOURCE_FILES
         SpaceCadetPinball/imstb_textedit.h
         SpaceCadetPinball/imstb_rectpack.h
         SpaceCadetPinball/imstb_truetype.h
+        SpaceCadetPinball/DebugOverlay.cpp
+        SpaceCadetPinball/DebugOverlay.h
         )
 
 # On Windows, include resource file with the icon
 if(WIN32)
     set_source_files_properties(SpaceCadetPinball/SpaceCadetPinball.rc LANGUAGE RC)
-    list(APPEND SOURCE_FILES SpaceCadetPinball/SpaceCadetPinball.rc)   
+    list(APPEND SOURCE_FILES SpaceCadetPinball/SpaceCadetPinball.rc)
 endif(WIN32)
 
 add_executable(SpaceCadetPinball ${SOURCE_FILES})
@@ -221,10 +225,10 @@ endif()
 if(UNIX AND NOT APPLE)
 	include(GNUInstallDirs)
 	install(TARGETS "${PROJECT_NAME}" RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
-	install(FILES "Platform/Linux/${PROJECT_NAME}.desktop" DESTINATION "share/applications")
-	install(FILES "Platform/Linux/${PROJECT_NAME}.metainfo.xml" DESTINATION "share/metainfo")
+	install(FILES "${CMAKE_SOURCE_DIR}/Platform/Linux/${PROJECT_NAME}.desktop" DESTINATION "share/applications")
+	install(FILES "${CMAKE_SOURCE_DIR}/Platform/Linux/${PROJECT_NAME}.metainfo.xml" DESTINATION "share/metainfo")
 	foreach(S 16 32 48 128 192)
-		install(FILES "${PROJECT_NAME}/Icon_${S}x${S}.png" DESTINATION
+		install(FILES "${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/Icon_${S}x${S}.png" DESTINATION
 			"share/icons/hicolor/${S}x${S}/apps" RENAME "${PROJECT_NAME}.png")
 	endforeach(S)
 endif()

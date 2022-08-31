@@ -4,6 +4,7 @@ class TLight;
 class TSound;
 class TPinballTable;
 class TPinballComponent;
+enum class Msg : int;
 
 struct component_tag_base
 {
@@ -47,8 +48,8 @@ struct component_tag : component_tag_base
 struct component_control
 {
 	void (* ControlFunc)(int, TPinballComponent*);
-	int ScoreCount;
-	int* Scores;
+	unsigned int ScoreCount;
+	const int* Scores;
 };
 
 struct component_info
@@ -63,10 +64,11 @@ class control
 public:
 	static TPinballTable* TableG;
 	static component_info score_components[88];
-	static component_tag_base* simple_components[142];
+	static component_tag_base* simple_components[145];
 	static int waiting_deployment_flag;
 	static bool table_unlimited_balls;
-	static int RankRcArray[9], MissionRcArray[17], mission_select_scores[17];
+	static Msg RankRcArray[9], MissionRcArray[17];
+	static int mission_select_scores[17];
 	static component_tag_base *wormhole_tag_array1[3], *wormhole_tag_array2[3], *wormhole_tag_array3[3];
 
 	static void make_links(TPinballTable* table);
@@ -79,7 +81,7 @@ public:
 	static void table_set_bonus();
 	static void table_set_jackpot();
 	static void table_set_flag_lights();
-	static void table_set_multiball();
+	static void table_set_multiball(float time);
 	static void table_bump_ball_sink_lock();
 	static void table_set_replay(float value);
 	static void cheat_bump_rank();

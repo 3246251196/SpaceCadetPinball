@@ -29,6 +29,7 @@
 #include <string>
 #include <thread>
 #include <map>
+#include <initializer_list>
 //#include <array>
 
 #define SDL_MAIN_HANDLED
@@ -36,8 +37,9 @@
 #include <SDL_mixer.h>
 
 // MIX_INIT_FLUIDSYNTH was renamed to MIX_INIT_MID in SDL_mixer v2.0.2
+// Older versions of SDL_mixer did not have SDL_MIXER_VERSION_ATLEAST
 constexpr int MIX_INIT_MID_Proxy =
-#if SDL_MIXER_PATCHLEVEL >= 2
+#if SDL_VERSIONNUM(SDL_MIXER_MAJOR_VERSION, SDL_MIXER_MINOR_VERSION, SDL_MIXER_PATCHLEVEL) >= SDL_VERSIONNUM(2, 0, 2)
 	MIX_INIT_MID;
 #else
 	MIX_INIT_FLUIDSYNTH;
@@ -110,5 +112,7 @@ constexpr const char* PlatformDataPaths[2] =
 	"/usr/share/SpaceCadetPinball/"
 	#endif
 };
+
+constexpr float Pi = 3.14159265358979323846f;
 
 #endif //PCH_H

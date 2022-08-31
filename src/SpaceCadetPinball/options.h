@@ -1,5 +1,7 @@
 #pragma once
 
+enum class Msg : int;
+
 enum class Menu1:int
 {
 	New_Game = 101,
@@ -8,6 +10,7 @@ enum class Menu1:int
 	Exit = 105,
 	Sounds = 201,
 	Music = 202,
+	SoundStereo = 203,
 	Help_Topics = 301,
 	Launch_Ball = 401,
 	Pause_Resume_Game = 402,
@@ -80,11 +83,21 @@ struct optionsStruct
 	bool IntegerScaling;
 	int SoundVolume;
 	int MusicVolume;
+	bool SoundStereo;
+	bool DebugOverlay;
+	bool DebugOverlayGrid;
+	bool DebugOverlayAllEdges;
+	bool DebugOverlayBallPosition;
+	bool DebugOverlayBallEdges;
+	bool DebugOverlayCollisionMask;
+	bool DebugOverlaySprites;
+	bool DebugOverlaySounds;
+	std::string FontFileName;
 };
 
 struct ControlRef
 {
-	const char* Name;
+	Msg NameStringId;
 	GameInput (&Option)[3];
 };
 

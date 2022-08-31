@@ -4,11 +4,12 @@
 #include "control.h"
 #include "fullscrn.h"
 #include "midi.h"
-#include "pinball.h"
 #include "options.h"
 #include "pb.h"
 #include "render.h"
 #include "Sound.h"
+#include "translations.h"
+#include "font_selection.h"
 
 SDL_Window* winmain::MainWindow = nullptr;
 SDL_Renderer* winmain::Renderer = nullptr;
@@ -69,7 +70,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
 	}
 
-	pinball::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
+	pb::quickFlag = strstr(lpCmdLine, "-quick") != nullptr;
 
 	// SDL window
 #ifndef __amigaos4__
@@ -77,7 +78,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 #endif
        window = SDL_CreateWindow
 	(
-		pinball::get_rc_string(38, 0),
+		pb::get_rc_string(Msg::STRING139),
 		SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
 		800, 556,
 		SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE
@@ -130,9 +131,6 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	ImGui::StyleColorsDark();
 	ImGuiIO& io = ImGui::GetIO();
 	ImIO = &io;
-	// ImGui_ImplSDL2_Init is private, we are not actually using ImGui OpenGl backend
-	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
-	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
 
 #ifndef __amigaos4__
         auto 
@@ -144,11 +142,46 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	// First step: just load the options
 	options::InitPrimary();
 
-        // Data search order: WD, executable path, user pref path, platform specific paths.
-#ifndef __amigaos4__        
-	auto 
+	if(!Options.FontFileName.empty()) 
+	{
+		ImGuiSDL::Deinitialize();
+		io.Fonts->Clear();
+		ImVector<ImWchar> ranges;
+		translations::GetGlyphRange(&ranges);
+		ImFontConfig fontConfig{};
+
+		// ToDo: further tweak font options, maybe try imgui_freetype
+		fontConfig.OversampleV = 2;
+		fontConfig.OversampleH = 4;
+
+		// ToDo: improve font file test, checking if file exists is not enough
+		auto fileName = Options.FontFileName.c_str();
+		auto fileHandle = fopenu(fileName, "rb");
+		if (fileHandle)
+		{
+			fclose(fileHandle);
+
+			// ToDo: Bind font size to UI scale
+			if (!io.Fonts->AddFontFromFileTTF(fileName, 13.f, &fontConfig, ranges.Data))
+				io.Fonts->AddFontDefault();
+		}
+		else
+			io.Fonts->AddFontDefault();
+
+		io.Fonts->Build();
+		ImGuiSDL::Initialize(renderer, 0, 0);
+	}
+
+	// ImGui_ImplSDL2_Init is private, we are not actually using ImGui OpenGl backend
+	ImGui_ImplSDL2_InitForOpenGL(window, nullptr);
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
+
+	// Data search order: WD, executable path, user pref path, platform specific paths.
+#ifndef __amigaos4__
+        auto
 #endif
-        basePath = SDL_GetBasePath();
+	basePath = SDL_GetBasePath();
+
 	std::vector<const char*> searchPaths
 	{
 		{
@@ -166,7 +199,7 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 	if (!Sound::Init(Options.SoundChannels, Options.Sounds, Options.SoundVolume))
 		Options.Sounds = false;
 
-	if (!pinball::quickFlag && !midi::music_init(Options.MusicVolume))
+	if (!pb::quickFlag && !midi::music_init(Options.MusicVolume))
 		Options.Music = false;
 
 	if (pb::init())
@@ -246,11 +279,22 @@ int winmain::WinMain(LPCSTR lpCmdLine)
 				float dy = static_cast<float>(y - last_mouse_y) / static_cast<float>(h);
 				pb::ballset(dx, dy);
 
-				SDL_WarpMouseInWindow(window, last_mouse_x, last_mouse_y);
+				// Original creates continuous mouse movement with mouse capture.
+				// Alternative solution: mouse warp at window edges.
+				int xMod = 0, yMod = 0;
+				if (x == 0 || x >= w - 1)
+					xMod = w - 2;
+				if (y == 0 || y >= h - 1)
+					yMod = h - 2;
+				if (xMod != 0 || yMod != 0)
+				{
+					// Mouse warp does not work over remote desktop or in some VMs
+					x = abs(x - xMod); y = abs(y - yMod);
+					SDL_WarpMouseInWindow(window, x, y);
+				}
 
-				// Mouse warp does not work over remote desktop or in some VMs
-				//last_mouse_x = x;
-				//last_mouse_y = y;
+				last_mouse_x = x;
+				last_mouse_y = y;
 			}
 			if (!single_step && !no_time_loss)
 			{
@@ -402,34 +446,34 @@ void winmain::RenderUi()
 			fullscrn::window_size_changed();
 		}
 
-		if (ImGui::BeginMenu("Game"))
+		if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Game)))
 		{
-			if (ImGui::MenuItem("New Game", "F2"))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_New_Game), "F2"))
 			{
 				new_game();
 			}
-			if (ImGui::MenuItem("Launch Ball", nullptr, false, LaunchBallEnabled))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Launch_Ball), nullptr, false, LaunchBallEnabled))
 			{
 				end_pause();
 				pb::launch_ball();
 			}
-			if (ImGui::MenuItem("Pause/Resume Game", "F3"))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Pause_Resume_Game), "F3"))
 			{
 				pause();
 			}
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("High Scores...", nullptr, false, HighScoresEnabled))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_High_Scores), nullptr, false, HighScoresEnabled))
 			{
 				pause(false);
 				pb::high_scores();
 			}
-			if (ImGui::MenuItem("Demo", nullptr, DemoActive))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Demo), nullptr, DemoActive))
 			{
 				end_pause();
 				pb::toggle_demo();
 			}
-			if (ImGui::MenuItem("Exit"))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Exit)))
 			{
 				SDL_Event event{SDL_QUIT};
 				SDL_PushEvent(&event);
@@ -437,44 +481,57 @@ void winmain::RenderUi()
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Options"))
+		if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Options)))
 		{
 			if (ImGui::MenuItem("Show Menu", "F9", Options.ShowMenu))
 			{
 				options::toggle(Menu1::Show_Menu);
 			}
-			if (ImGui::MenuItem("Full Screen", "F4", Options.FullScreen))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Full_Screen), "F4", Options.FullScreen))
 			{
 				options::toggle(Menu1::Full_Screen);
 			}
-			if (ImGui::BeginMenu("Select Players"))
+			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Select_Players)))
 			{
-				if (ImGui::MenuItem("1 Player", nullptr, Options.Players == 1))
+				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_1Player), nullptr, Options.Players == 1))
 				{
 					options::toggle(Menu1::OnePlayer);
 					new_game();
 				}
-				if (ImGui::MenuItem("2 Players", nullptr, Options.Players == 2))
+				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_2Players), nullptr, Options.Players == 2))
 				{
 					options::toggle(Menu1::TwoPlayers);
 					new_game();
 				}
-				if (ImGui::MenuItem("3 Players", nullptr, Options.Players == 3))
+				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_3Players), nullptr, Options.Players == 3))
 				{
 					options::toggle(Menu1::ThreePlayers);
 					new_game();
 				}
-				if (ImGui::MenuItem("4 Players", nullptr, Options.Players == 4))
+				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_4Players), nullptr, Options.Players == 4))
 				{
 					options::toggle(Menu1::FourPlayers);
 					new_game();
 				}
 				ImGui::EndMenu();
 			}
-			if (ImGui::MenuItem("Player Controls...", "F8"))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Player_Controls), "F8"))
 			{
 				pause(false);
 				options::ShowControlDialog();
+			}
+			if (ImGui::BeginMenu("Language"))
+			{
+				auto currentLanguage = translations::GetCurrentLanguage();
+				for (auto &item : translations::Languages)
+				{
+					if (ImGui::MenuItem(item.DisplayName, nullptr, currentLanguage->Language == item.Language))
+					{
+						translations::SetCurrentLanguage(item.ShortName);
+						winmain::Restart();
+					}
+				}
+				ImGui::EndMenu();
 			}
 			ImGui::Separator();
 
@@ -483,6 +540,10 @@ void winmain::RenderUi()
 				if (ImGui::MenuItem("Sound", "F5", Options.Sounds))
 				{
 					options::toggle(Menu1::Sounds);
+				}
+				if (ImGui::MenuItem("Stereo Sound Effects", nullptr, Options.SoundStereo))
+				{
+					options::toggle(Menu1::SoundStereo);
 				}
 				ImGui::TextUnformatted("Sound Volume");
 				if (ImGui::SliderInt("##Sound Volume", &Options.SoundVolume, options::MinVolume, options::MaxVolume, "%d",
@@ -498,7 +559,7 @@ void winmain::RenderUi()
 				}
 				ImGui::Separator();
 
-				if (ImGui::MenuItem("Music", "F6", Options.Music))
+				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_Music), "F6", Options.Music))
 				{
 					options::toggle(Menu1::Music);
 				}
@@ -513,7 +574,11 @@ void winmain::RenderUi()
 
 			if (ImGui::BeginMenu("Graphics"))
 			{
-				if (ImGui::MenuItem("Uniform Scaling", nullptr, Options.UniformScaling))
+				if (ImGui::MenuItem("Change Font"))
+				{
+					font_selection::ShowDialog();
+				}
+				if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_WindowUniformScale), nullptr, Options.UniformScaling))
 				{
 					options::toggle(Menu1::WindowUniformScale);
 				}
@@ -569,10 +634,18 @@ void winmain::RenderUi()
 				ImGui::EndMenu();
 			}
 
-			if (ImGui::BeginMenu("Table Resolution"))
+			if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Table_Resolution)))
 			{
 				char buffer[20]{};
-				auto maxResText = pinball::get_rc_string(fullscrn::GetMaxResolution() + 2030, 0);
+				Msg resolutionStringId = Msg::Menu1_UseMaxResolution_640x480;
+
+				switch(fullscrn::GetMaxResolution()) {
+					case 0: resolutionStringId = Msg::Menu1_UseMaxResolution_640x480; break;
+					case 1: resolutionStringId = Msg::Menu1_UseMaxResolution_800x600; break;
+					case 2: resolutionStringId = Msg::Menu1_UseMaxResolution_1024x768; break;
+				}
+				
+				auto maxResText = pb::get_rc_string(resolutionStringId);
 				if (ImGui::MenuItem(maxResText, nullptr, Options.Resolution == -1))
 				{
 					options::toggle(Menu1::MaximumResolution);
@@ -600,7 +673,7 @@ void winmain::RenderUi()
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu("Help"))
+		if (ImGui::BeginMenu(pb::get_rc_string(Msg::Menu1_Help)))
 		{
 #ifndef NDEBUG
 			if (ImGui::MenuItem("ImGui Demo", nullptr, ShowImGuiDemo))
@@ -617,6 +690,28 @@ void winmain::RenderUi()
 			if (pb::cheat_mode && ImGui::MenuItem("Frame Times", nullptr, DispGRhistory))
 			{
 				DispGRhistory ^= true;
+			}
+			if (ImGui::MenuItem("Debug Overlay", nullptr, Options.DebugOverlay))
+			{
+				Options.DebugOverlay ^= true;
+			}
+			if (Options.DebugOverlay && ImGui::BeginMenu("Overlay Options"))
+			{
+				if (ImGui::MenuItem("Box Grid", nullptr, Options.DebugOverlayGrid))
+					Options.DebugOverlayGrid ^= true;
+				if (ImGui::MenuItem("Sprite Positions", nullptr, Options.DebugOverlaySprites))
+					Options.DebugOverlaySprites ^= true;
+				if (ImGui::MenuItem("All Edges", nullptr, Options.DebugOverlayAllEdges))
+					Options.DebugOverlayAllEdges ^= true;
+				if (ImGui::MenuItem("Ball Position", nullptr, Options.DebugOverlayBallPosition))
+					Options.DebugOverlayBallPosition ^= true;
+				if (ImGui::MenuItem("Ball Box Edges", nullptr, Options.DebugOverlayBallEdges))
+					Options.DebugOverlayBallEdges ^= true;
+				if (ImGui::MenuItem("Sound Positions", nullptr, Options.DebugOverlaySounds))
+					Options.DebugOverlaySounds ^= true;
+				if (ImGui::MenuItem("Apply Collision Mask", nullptr, Options.DebugOverlayCollisionMask))
+					Options.DebugOverlayCollisionMask ^= true;
+				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Cheats"))
 			{
@@ -637,7 +732,7 @@ void winmain::RenderUi()
 			}
 			ImGui::Separator();
 
-			if (ImGui::MenuItem("About Pinball"))
+			if (ImGui::MenuItem(pb::get_rc_string(Msg::Menu1_About_Pinball)))
 			{
 				pause(false);
 				ShowAboutDialog = true;
@@ -652,11 +747,15 @@ void winmain::RenderUi()
 
 	a_dialog();
 	high_score::RenderHighScoreDialog();
+	font_selection::RenderDialog();
 	if (ShowSpriteViewer)
 		render::SpriteViewer(&ShowSpriteViewer);
 	options::RenderControlDialog();
 	if (DispGRhistory)
 		RenderFrameTimeDialog();
+	
+	// Print game texts on the sidebar
+	gdrv::grtext_draw_ttext_in_box();
 }
 
 int winmain::event_handler(const SDL_Event* event)
@@ -836,7 +935,7 @@ int winmain::event_handler(const SDL_Event* event)
 			activated = true;
 			Sound::Activate();
 			if (Options.Music && !single_step)
-				midi::play_pb_theme();
+				midi::music_play();
 			no_time_loss = true;
 			has_focus = true;
 			break;
@@ -902,7 +1001,7 @@ int winmain::ProcessWindowMessages()
 {
 	static auto idleWait = 0;
 	SDL_Event event;
-	if (has_focus && !single_step)
+	if (has_focus)
 	{
 		idleWait = static_cast<int>(TargetFrameTime.count());
 		while (SDL_PollEvent(&event))
@@ -928,8 +1027,8 @@ void winmain::memalloc_failure()
 {
 	midi::music_stop();
 	Sound::Close();
-	char* caption = pinball::get_rc_string(170, 0);
-	char* text = pinball::get_rc_string(179, 0);
+	const char* caption = pb::get_rc_string(Msg::STRING270);
+	const char* text = pb::get_rc_string(Msg::STRING279);
 	SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, caption, text, MainWindow);
 	std::exit(1);
 }
@@ -939,13 +1038,13 @@ void winmain::a_dialog()
 	if (ShowAboutDialog == true)
 	{
 		ShowAboutDialog = false;
-		ImGui::OpenPopup("About");
+		ImGui::OpenPopup(pb::get_rc_string(Msg::STRING204));
 	}
 
 	bool unused_open = true;
-	if (ImGui::BeginPopupModal("About", &unused_open, ImGuiWindowFlags_AlwaysAutoResize))
+	if (ImGui::BeginPopupModal(pb::get_rc_string(Msg::STRING204), &unused_open, ImGuiWindowFlags_AlwaysAutoResize))
 	{
-		ImGui::TextUnformatted("3D Pinball for Windows - Space Cadet");
+		ImGui::TextUnformatted(pb::get_rc_string(Msg::STRING139));
 		ImGui::TextUnformatted("Original game by Cinematronics, Microsoft");
 		ImGui::Separator();
 
