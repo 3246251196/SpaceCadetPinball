@@ -11,7 +11,7 @@ DEFS:=
 INCS:=-I/SDK/local/newlib/include/SDL2
 LD:=g++
 LDFLAGS:=-static -athread=native 
-LIBS:=-lSDL2_mixer -lSDL2 -lmodplug -lmikmod -lflac -lsmpeg2 -lvorbisfile -lvorbis -logg
+LIBS:=-lSDL2_mixer -lSDL2 -lmodplug -lmikmod -lFLAC -lsmpeg2 -lvorbisfile -lvorbis -logg
 
 RM:=rm
 MV:=mv

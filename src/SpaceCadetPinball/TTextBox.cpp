@@ -171,7 +171,7 @@ void TTextBox::DrawImGui()
 	ImGui::SetNextWindowSize(ImVec2(rect.w, rect.h));
 
 	// Use the pointer to generate a window unique name per text box
-	snprintf(windowName, sizeof(windowName), "TTextBox_%p", this);
+	snprintf(windowName, sizeof(windowName), "TTextBox_%p", (void*)this);
 	if (ImGui::Begin(windowName, nullptr, window_flags))
 	{
 		ImGui::SetWindowFontScale(fullscrn::GetScreenToPinballRatio());
